@@ -4,7 +4,11 @@
     "version": "2.0.0",
     "description": "Soyy Sauce",
     "manifest_version": 3,
-    "author": "Sampurna Chapagain",
+    "author": "Yu Cheng, Olivia, Nhi, Serene",
+    "icons":{
+        "16":"/small_soy.png",
+        "48":"/small_soy.png"
+    },
     "action":{
         "default_popup": "index.html",
         "default_title": "Soyy Sauce"

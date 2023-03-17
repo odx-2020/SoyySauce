@@ -20,7 +20,8 @@ body {
   }
 
   p {
-    color: rgb(247, 177, 177);
+    /* color: rgb(247, 177, 177); */
+    color: #efcb58;
   }
 
 
@@ -66,11 +67,22 @@ td, th {
   text-align: left;
   padding: 8px;
 }
+/* 
+tr:nth-child(even) {
+  background-color: #646363;
+  color:black
+} */
 
 tr:nth-child(even) {
-  background-color: #ed0c0c;
+  background: #CCC;
+  color: black;
 }
 
+tr:nth-child(odd) {
+  background: #FFF;
+  color: black;
+
+}
 tr{
   color: #3cd6ed ;
 }
