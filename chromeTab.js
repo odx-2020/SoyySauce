@@ -573,15 +573,23 @@ function getInputField(){
         }
 
         // Create a button to update the input fields on the webpage
-        const updateButton = document.createElement("button");
-        updateButton.textContent = "Scan SQLi vulnerability!";
-        updateButton.addEventListener("click", function () {
+        const scanSqlButton = document.createElement("button");
+        scanSqlButton.textContent = "SQLi vulnerability Scan";
+        scanSqlButton.addEventListener("click", function () {
           const formContainer = this.parentNode;
           checkSQLInjection(formContainer.id);
         });
+        const scanFullSqlButton = document.createElement("button");
+        scanFullSqlButton.textContent = "Full SQLi vulnerability Scan";
+        scanFullSqlButton.addEventListener("click", function () {
+          const formContainer = this.parentNode;
+          checkAllSQLInjection(formContainer.id);
+        });
 
         // Add the button to the form container
-        formContainer.appendChild(updateButton);
+        formContainer.appendChild(scanSqlButton);
+        formContainer.appendChild(scanFullSqlButton);
+
 
         // Add the form container to the page
         formContain.appendChild(formContainer);
@@ -727,6 +735,158 @@ function checkSQLInjection(formContainer) {
     setTimeout(() => {
       xhr.abort();
     }, 5000);
+  })
+  .catch(function(error) {
+    console.log(error);
+  });
+}
+function checkAllSQLInjection(formContainer) {
+  fetch(currentURL)
+  .then(function(response) {
+    return response.text();
+  })
+  .then(function(html) {
+    // create a dummy DOM element to parse the HTML string
+    const parser = new DOMParser();
+    console.log(formContainer);
+    const doc = parser.parseFromString(html, 'text/html');
+    // get the login form and add a submit event listener to intercept the submission
+    const loginForm = doc.getElementById(formContainer);
+    console.log(loginForm);
+    const loginAction = new URL(loginForm.action).pathname;
+    console.log(loginAction);
+    // if(loginAction.includes('.')){
+
+    // }
+    // else{}
+    const splitUrl = currentURL.split('/');
+    const domain = splitUrl.slice(0, -1).join('/');
+    const page = splitUrl[splitUrl.length - 1];
+    let newUrl = "";  
+    if(loginAction.includes('.')){
+      const fileExtension = loginAction.split('.').pop();
+      if(fileExtension === 'php' || fileExtension === 'com' || fileExtension === 'jsp'){
+        newUrl = domain + loginAction;
+      }
+      else{
+        newUrl = domain + loginAction;
+      }
+    }
+    else{
+      newUrl = domain + loginAction;
+    }
+    console.log(newUrl);
+    const inputFields = loginForm.querySelectorAll('input[type=text], input[type=password], input[type=email]');
+
+    console.log(inputFields);
+    const payloadObj = {};
+    inputFields.forEach(function(input){
+      const inputName = input.getAttribute('name');
+      const inputValue = document.getElementById(inputName).value;
+      if(!inputValue){
+        input.value = "123";
+        payloadObj[inputName] = "123";
+      }
+      else{
+        input.value = inputValue;
+        payloadObj[inputName] = inputValue;
+      }
+      
+    })
+    const buttonFields = loginForm.querySelector('input[type=submit]')
+    const buttonName = buttonFields.getAttribute('name');
+    const buttonValue = buttonFields.value;
+    if(!buttonName){
+      
+    }
+    else{
+      payloadObj[buttonName] = buttonValue;
+    }
+    // loop over the input fields
+    for (const input of inputFields) {
+      const inputName = input.getAttribute('name');
+
+      // loop over the payloads
+      for (const payload of payloads) {
+        // create a copy of the payload object to modify
+        const newPayloadObj = { ...payloadObj };
+        newPayloadObj[inputName] = payload;
+
+        // create the payload string
+        const payloadStr = Object.entries(newPayloadObj)
+          .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+          .join('&');
+        // send the request with the modified payload
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', newUrl);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.addEventListener('load', function() {
+          const responseText = xhr.responseText;
+          const responseUrl = xhr.responseURL;
+          let responseErrorText = ""
+          if (errors.some(error => responseText.toLowerCase().includes(error.toLowerCase()))) {
+            // loop over the payload object and search for the name or ID of each input field
+            Object.keys(newPayloadObj).forEach(function(key) {
+              const fieldValue = newPayloadObj[key];
+              const fieldName = key.toLowerCase();
+              if (payloads.includes(fieldValue)) {
+              // check if the response text contains the name or ID of the input field
+                // if (responseText.includes(fieldName)) {
+                  responseErrorText = 'Potential vulnerability found in ' + fieldName + ' field with payload "' + fieldValue +'"!';
+                  console.log(responseErrorText)
+                  // console.log('Potential vulnerability found in ' + fieldName + ' field with payload "' + fieldValue +'"!');
+                // }
+              }
+            });
+          }
+          else if(responseUrl !== currentURL){
+            if(loginErrors.some(loginErrors => responseText.toLowerCase().includes(loginErrors.toLowerCase()))){
+              Object.keys(newPayloadObj).forEach(function(key) {
+                const fieldValue = newPayloadObj[key];
+                const fieldName = key.toLowerCase();         
+                if (payloads.includes(fieldValue)) {
+                  responseErrorText = 'Log in to '+ responseUrl + ' from ' + fieldName + ' field with payload "' + fieldValue +'"!';
+                  console.log(responseErrorText)
+                  console.log('Log in to '+ responseUrl + 'with' + fieldName + ' field with payload "' + fieldValue +'"!');
+                }
+              });
+            }
+            else{
+              Object.keys(newPayloadObj).forEach(function(key) {
+                const fieldValue = newPayloadObj[key];
+                const fieldName = key.toLowerCase();         
+                if (payloads.includes(fieldValue)) {
+                  responseErrorText = 'Redirected to '+ responseUrl + ' from ' + fieldName + ' field with payload "' + fieldValue +'"!';
+                  console.log(responseErrorText)
+                  console.log('Redirected to '+ responseUrl + 'with' + fieldName + ' field with payload "' + fieldValue +'"!');
+                }
+              });
+            }
+          }
+          else{
+            Object.keys(newPayloadObj).forEach(function(key) {
+              const fieldValue = newPayloadObj[key];
+              const fieldName = key.toLowerCase();
+              if (payloads.includes(fieldValue)) {
+                responseErrorText = 'Error getting response with ' + fieldName + ' field with payload "' + fieldValue + '".'
+              }
+            })
+          }
+          const responseError = document.createElement("p");
+          const responseErrorNode = document.createTextNode(responseErrorText);
+          responseError.appendChild(responseErrorNode);
+          const element = document.getElementById('responseError');
+          element.appendChild(responseError);
+        });
+        xhr.send(payloadStr); 
+          loginForm.submit();
+          setTimeout(() => {
+            xhr.abort();
+          }, 5000);
+      }
+    }
+    // send the payload and submit the form
+
   })
   .catch(function(error) {
     console.log(error);
