@@ -282,8 +282,16 @@ function enumerateTable(){
     // Output the most frequent word
     console.log(`The most frequent word is "${allTables}" with a count of ${maxCount}.`);
     tableArray = allTables.split(",");
+    
     const table = document.getElementById('tableName');
-    const tableTable = document.createElement("ul");
+
+    let tableTable = document.getElementsByTagName("ul");
+    if(tableTable.length > 0){
+      for (let i = tableTable.length - 1; i >= 0; i--) {
+        tableTable[i].remove();
+      }
+    }
+    tableTable = document.createElement("ul");
     console.log(tableArray);
     tableArray.forEach(tableName => {
        const tableList = document.createElement("li");
@@ -358,7 +366,13 @@ function enumerateTableInfo(){
     
     columnArray = allColumns.split(",");
     const table = document.getElementById('table');
-    const tableTable = document.createElement("tr");
+    let tableTable = document.getElementsByTagName("tr");
+    if(tableTable.length > 0){
+      for (let i = tableTable.length - 1; i >= 0; i--) {
+        tableTable[i].remove();
+      }
+    }
+    tableTable = document.createElement("tr");
     const tableColumn = document.createElement("th");
     const tableType = document.createElement("th");
     const columnName = document.createTextNode("Column");
@@ -391,12 +405,12 @@ function enumerateTableInfo(){
       table.appendChild(tableTable);
       
     })
-    const database = document.createElement("p");
-    const databaseNode = document.createTextNode("Columns in " + tableName+": " + allColumns);
-		database.appendChild(databaseNode);
-		const element = document.getElementById('database');
-    element.appendChild(database);
-    console.log(allColumns);
+    // const database = document.createElement("p");
+    // const databaseNode = document.createTextNode("Database found: " + databaseName);
+		// database.appendChild(databaseNode);
+		// const element = document.getElementById('database');
+    // element.appendChild(databaseNode);
+    // console.log(databaseName);
   })
   .catch(error => console.log(error));
   
@@ -459,15 +473,15 @@ function enumerateColumnInfo(){
       }
     }
 
-    // Output the most frequent word
-    console.log(`The most frequent word is "${mostFrequentWord}" with a count of ${maxCount}.`);
+    // // Output the most frequent word
+    // console.log(`The most frequent word is "${mostFrequentWord}" with a count of ${maxCount}.`);
     
-    const database = document.createElement("p");
-    const databaseNode = document.createTextNode("Table found: " + mostFrequentWord);
-		database.appendChild(databaseNode);
-		const element = document.getElementById('database');
-    element.appendChild(database);
-    console.log(mostFrequentWord);
+    // const database = document.createElement("p");
+    // const databaseNode = document.createTextNode("Table found: " + mostFrequentWord);
+		// database.appendChild(databaseNode);
+		// const element = document.getElementById('database');
+    // element.appendChild(database);
+    // console.log(mostFrequentWord);
 
     const tableRow = mostFrequentWord.split(";,");
     const table = document.getElementById('tables');
