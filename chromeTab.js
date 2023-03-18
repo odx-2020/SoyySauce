@@ -95,7 +95,7 @@ async function enumerateColumn() {
       }
       else if(response.status === 404){
         const errorMsg = document.createElement("p");
-        const errorMsgNode = document.createTextNode("URL is not vulnerable to SQL Injection!");
+        const errorMsgNode = document.createTextNode("Error! Please enter a valid URL!");
         errorMsg.appendChild(errorMsgNode);
         const element = document.getElementById('columnNo');
         element.appendChild(errorMsg);
