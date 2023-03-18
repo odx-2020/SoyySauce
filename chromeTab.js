@@ -107,7 +107,7 @@ async function enumerateColumn() {
       errorMsg.appendChild(errorMsgNode);
       const element = document.getElementById('columnNo');
       element.appendChild(errorMsg);
-      break
+      break;
     }
     OrderBy++;
   }
