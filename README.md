@@ -26,3 +26,5 @@ Soyy Sauce is a Google Chrome extension SQLi tool with GUI that enumerate the we
 1. Visit a webpage. For example `https://demo.testfire.net/login.jsp`.
 2. Click 'Get Input Field' to selecting payload.
 
+## Disclaimer
+Soyy Sauce is for educational purposes only and should not be used to cause damage directly or indirectly.
