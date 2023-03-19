@@ -21,7 +21,7 @@ Soyy Sauce is a Google Chrome extension SQLi tool with GUI that enumerate the we
 ## Usage
 #### For database enumeration
 1. Visit a webpage. For example `http://testphp.vulnweb.com/artists.php?artist=1`.
-2. Click 'Start' to enumerate the webpage.
+2. Click 'Start' to start enumerate the webpage.
 #### For form-based injection
 1. Visit a webpage. For example `https://demo.testfire.net/login.jsp`.
 2. Click 'Get Input Field' to start attacking.
